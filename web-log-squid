@@ -1,0 +1,70 @@
+#!/bin/bash
+
+
+help_menu() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -f, --file"
+    echo "      Required argument, passes the log file to analyze."
+    echo "  -h, --help"
+    echo "      Show help message."
+    exit 0  
+}
+
+if [[ "$1" == "-h" || "$1" == "--help" || -z "$1" ]]; then
+    help_menu
+fi
+
+log_file=$2
+if [ ! -f $log_file ]; then
+    echo "[!] Error: Log file '$log_file' not found. Please check/do the following to resolve the error:"
+    echo -e "\tThe log file is in the current working directory."
+    echo -e "\tUse relative paths to access the log file (i.e. '../../auth.log')."
+    echo -e "\tUse the full path to the file (i.e. '/home/user/auth.log')."
+    echo -e "\n==============================================\n"
+    exit 1
+fi
+
+save_date() {
+    datetime=$(date -d @$(head -1 $log_file | awk '{print $1}'))
+    echo "$datetime"
+}
+
+fastest_request() {
+    req=$(awk '{print $2}' $log_file | sort -n | sed -n '1p')
+    echo "$req"
+}
+
+slowest_request() {
+    req=$(awk '{print $2}' $log_file | sort -n | sed -n '$p')
+    echo "$req"
+}
+
+unique_clients() {
+    total=$(awk '{print $3}' $log_file | sort -u | wc -l)
+    echo "$total"
+}
+
+get_method() {
+    total=$(grep -E "\bGET\b" $log_file | wc -l)
+    echo "$total"
+}
+
+post_method() {
+    total=$(grep -E "\bPOST\b" $log_file | wc -l)
+    echo "$total"
+}
+
+antivirus() {
+    uri=$(grep -E "virus" $log_file | awk '{print $7}')
+    echo "$uri"
+}
+
+echo -e "[+] Date of the first log entry:\n\t$(save_date)"
+echo -e "[+] Time of the fastest request:\n\t$(fastest_request)"
+echo -e "[+] Time of the slowest request:\n\t$(slowest_request)"
+echo -e "[+] Total number of unique clients:\n\t$(unique_clients)"
+echo -e "[+] Total number of GET requests:\n\t$(get_method)"
+echo -e "[+] Total number of POST requests:\n\t$(post_method)"
+echo -e "[+] Company and URI for the antivirus:\n\t$(antivirus)"
+echo -e "\n==============================================\n"
