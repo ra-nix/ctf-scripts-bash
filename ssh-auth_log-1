@@ -1,0 +1,58 @@
+#!/bin/bash
+
+
+help_menu() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -f, --file"
+    echo "      Required argument, passes the log file to analyze."
+    echo "  -h, --help"
+    echo "      Show help message."
+    exit 0  
+}
+
+if [[ "$1" == "-h" || "$1" == "--help" || -z "$1" ]]; then
+    help_menu
+fi
+
+log_file=$2
+if [ ! -f "$log_file" ]; then
+    echo "[!] Error: Log file '$log_file' not found. Please check/do the following to resolve the error:"
+    echo -e "\tThe log file is in the current working directory."
+    echo -e "\tUse relative paths to access the log file (i.e. '../../auth.log')."
+    echo -e "\tUse the full path to the file (i.e. '/home/user/auth.log')."
+    echo -e "\n==============================================\n"
+    exit 1
+fi
+
+total_log_entries() {
+    num=$(wc -l $log_file)
+    echo "$num"
+}
+
+unique_usernames() {
+    username=$(awk '{print $4}' $log_file | sort | uniq | wc -l)
+    echo "$username"
+}
+
+most_active_user() {
+    username=$(awk '{print $4}' $log_file | sort | uniq -c | sort -nr | head -1)
+    echo "$username"
+}
+
+most_active_date() {
+    day=$(awk '{print $1}' $log_file | sort | uniq -c | sort -nr | head -1 | awk '{print $2}')
+    echo "$day"
+}
+
+user_ip_association() {
+    addr=$(awk '{print $3,$4}' $log_file| sort | uniq | awk '{print $2}' | sort | uniq -c | sort -nr | awk 'NR==1 {print $2}')
+    echo "$addr"
+}
+
+echo -e "[+] How many login attempts were made:\n\t$(total_log_entries)"
+echo -e "[+] How many unique usernames are in the log:\n\t$(unique_usernames)"
+echo -e "[+] What is the username with the most attempts and how many times did they try:\n\t$(most_active_user)"
+echo -e "[+] What is the date with the most login attempts:\n\t$(most_active_date)"
+echo -e "[+] User with the most unique IP addresses:\n\t$(user_ip_association)"
+echo -e "\n==============================================\n"
