@@ -1,0 +1,80 @@
+#!/bin/bash
+
+
+help_menu() {
+    echo "Usage: $0 [options]"
+    echo "Options:"
+    echo "  -f, --file"
+    echo "      Required argument, passes the log file to analyze."
+    echo "  -h, --help"
+    echo "      Show help message."
+    exit 0  
+}
+
+if [[ $1 == "-h" || $1 == "--help" || -z $1 ]]; then
+    help_menu
+fi
+
+log_file=$2
+if [ ! -f "$log_file" ]; then
+    echo "[!] Error: Log file '$log_file' not found. Please check/do the following to resolve the error:"
+    echo -e "\tThe log file is in the current working directory."
+    echo -e "\tUse relative paths to access the log file (i.e. '../../auth.log')."
+    echo -e "\tUse the full path to the file (i.e. '/home/user/auth.log')."
+    echo -e "\n==============================================\n"
+    exit 1
+fi
+
+number_of_client_ips() {
+    total_addresses=$(awk '{print $1}' $log_file | sort | uniq | wc -l)
+    echo "$total_addresses"
+}
+
+total_success_respCodes() {
+    total_ok=$(grep -Eo "\b200\b" "$log_file" | wc -l)
+    echo "$total_ok"
+}
+
+total_fail_respCodes() {
+    total_bad=$(grep -Eo "\b400\b" "$log_file" | wc -l)
+    echo "$total_bad"
+}
+
+shellshock_attempt() {
+    ip=$(grep -E '"\() {' "$log_file" | awk '{print $1}' | uniq)
+    echo "$ip"
+}
+
+googlebot_version() {
+    ver=$(grep -Eio 'googlebot/[0-9]\.[0-9]' "$log_file" | cut -d '/' -f 2 | uniq)
+    echo "$ver"
+}
+
+firefox_ua() {
+    ua=$(grep -Eo '\bFirefox/[0-9]{1,5}\.[0-9]{1,5}' "$log_file" | sort | uniq -c | sort -nr | head -1 | awk '{print $2}')
+    echo "$ua"
+}
+
+http_methods() {
+    methods=("GET" "POST" "CONNECT" "OPTIONS" "HEAD" "DELETE" "TRACE" "PUT" "PATCH")
+    
+    declare -A method_totals
+    for i in "${methods[@]}"; do
+        totals=$(grep -Eo "\b$i\b" "$log_file" | wc -l)
+        method_totals[$i]=$totals
+    done
+
+    for k in "${!method_totals[@]}"; do
+        echo "$k: ${method_totals[$k]}"
+    done
+}
+
+
+echo -e "[+] Total number of unique client IP Addresses:\n\t$(number_of_client_ips)"
+echo -e "[+] Total number of 200 response codes:\n\t$(total_success_respCodes)"
+echo -e "[+] Total number of 400 response codes:\n\t$(total_fail_respCodes)"
+echo -e "[+] Googlebot version:\n\t$(googlebot_version)"
+echo -e "[+] IP Address exploiting Shellshock:\n\t$(shellshock_attempt)"
+echo -e "[+] Versions of Firefox:\n\t$(firefox_ua)"
+echo -e "[+] Most common HTTP method:\n$(http_methods)"
+echo -e "\n==============================================\n"
